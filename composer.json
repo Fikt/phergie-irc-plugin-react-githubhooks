@@ -1,0 +1,42 @@
+{
+    "name": "fikt/phergie-irc-plugin-react-githubhooks",
+    "description": "Phergie plugin for Listen for GitHub webhooks, announce events on IRC.",
+    "keywords": [ "phergie", "irc", "bot", "plugin" ],
+    "license": "BSD-2-Clause",
+    "authors": [
+        {
+            "name": "Gunnsteinn Þórisson",
+            "email": "gussi@gussi.is",
+            "homepage": "https://github.com/Gussi",
+            "role": "Developer"
+        }
+    ],
+    "support": {
+        "email": "gussi@gussi.is",
+        "irc": "irc://irc.freenode.net/phergie",
+        "issues": "https://github.com/fikt/phergie-irc-plugin-react-githubhooks/issues",
+        "source": "https://github.com/fikt/phergie-irc-plugin-react-githubhooks"
+    },
+    "require": {
+        "phergie/phergie-irc-bot-react": "~1"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "4.5.*",
+        "phake/phake": "2.0.0-beta2"
+    },
+    "autoload": {
+        "psr-4": {
+            "Fikt\\Phergie\\Irc\\Plugin\\React\\GitHubHooks\\": "src"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Fikt\\Phergie\\Irc\\Tests\\Plugin\\React\\GitHubHooks\\": "tests"
+        }
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-master": "1.0-dev"
+        }
+    }
+}
