@@ -56,13 +56,7 @@ return [
 
 ## Tests
 
-To run the unit test suite:
-
-```
-curl -s https://getcomposer.org/installer | php
-php composer.phar install
-./vendor/bin/phpunit
-```
+To run the unit test suite do `composer test` 
 
 ## License
 

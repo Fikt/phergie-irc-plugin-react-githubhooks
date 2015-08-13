@@ -22,6 +22,9 @@ use Phergie\Irc\Event\EventInterface as Event;
  */
 class Plugin extends AbstractPlugin
 {
+
+    private $config;
+
     /**
      * Accepts plugin configuration.
      *
@@ -50,16 +53,19 @@ class Plugin extends AbstractPlugin
             ], $info);
         }
 
-        // Start webhook listener, wait for events
-        $this->webhook_server()->listen($config['port']);
+        $this->config = $config;
+    }
+
+    public function onConnectBeforeAll(array $connections) {
+        $this->webhook_server()->listen($this->config['port']);
     }
 
     private function webhook_server()
     {
         // Set up react HTTP server to listen for github webhooks
         $loop = $this->getLoop();
-        $socket = new React\Socket\Server($loop);
-        $http = new React\Http\Server($socket, $loop);
+        $socket = new \React\Socket\Server($loop);
+        $http = new \React\Http\Server($socket, $loop);
 
         $http->on('request', function ($request, $response) {
             $headers = $response->getHeaders();
@@ -119,6 +125,8 @@ class Plugin extends AbstractPlugin
     }
 
     public function getSubscribedEvents() {
-        return [];
+        return [
+            'connect.before.all'        => 'onConnectBeforeAll',
+        ];
     }
 }
