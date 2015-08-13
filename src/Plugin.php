@@ -117,4 +117,8 @@ class Plugin extends AbstractPlugin
 
         return $socket;
     }
+
+    public function getSubscribedEvents() {
+        return [];
+    }
 }
