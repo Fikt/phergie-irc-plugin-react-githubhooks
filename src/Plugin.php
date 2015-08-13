@@ -40,7 +40,7 @@ class Plugin extends AbstractPlugin
             'events'        => ['*'],
             'port'          => 8080,
             'webhooks'      => [],
-            'secret'        => NULL,
+            'secret'        => FALSE,
         ], $config);
 
         // Set default configuration for hooks, or use override values
@@ -57,10 +57,15 @@ class Plugin extends AbstractPlugin
     }
 
     public function onConnectBeforeAll(array $connections) {
-        $this->webhook_server()->listen($this->config['port']);
+        $this->webhook_server()->listen($this->config['port'], '0.0.0.0');
     }
 
-    private function webhook_server()
+    /**
+     * Start webhook server
+     *
+     * @param $connections          Array of connections (do we need that?)
+     */
+    private function webhook_server(Array $connections)
     {
         // Set up react HTTP server to listen for github webhooks
         $loop = $this->getLoop();
@@ -68,27 +73,39 @@ class Plugin extends AbstractPlugin
         $http = new \React\Http\Server($socket, $loop);
 
         $http->on('request', function ($request, $response) {
-            $headers = $response->getHeaders();
+            $headers = $request->getHeaders();
+
+            // Basic check if we got event and signature headers
+            if (empty($headers['X-GitHub-Event'])) {
+                $response->writeHead(500, ['Content-Type' => 'text/plain']);
+                $response->end("Missing event header\n");
+                return;
+            }
+
+            if (empty($headers['X-Hub-Signature'])) {
+                $response->writeHead(500, ['Content-Type' => 'text/plain']);
+                $response->end("Missing signature\n");
+                return;
+            }
 
             // Check if we're actually listening to this hook
-            $hook = substr($response->getPath(), 1);
-            if (!array_key_exists($this->hooks, $hook)) {
-                $response->write(500, ['Content-Type' => 'text/plain']);
+            $hook = substr($request->getPath(), 1);
+            if (!array_key_exists($hook, $this->hooks)) {
+                $response->writeHead(500, ['Content-Type' => 'text/plain']);
                 $response->end("Invalid path, please set correct path corresponding to your config\n");
                 return;
             }
             $hook = $this->hooks[$hook];
 
-            // Verify we're actually listening for the sent event
-            $event = $headers['X-GitHub-Event'];
-            if (!in_array($event, $hook['event'])) {
-                $response->write(500, ['Content-Type' => 'text/plain']);
+            // Check if we're actually listening for the sent event for this repository
+            if ($event === NULL || !in_array($headers['X-GitHub-Event'], $hook['events'])) {
+                $response->writeHead(500, ['Content-Type' => 'text/plain']);
                 $response->end("Invalid event, this hook is not listening to this event\n");
                 return;
             }
 
             // Okay the request
-            $response->write(200, ['Content-Type' => 'text/plain']);
+            $response->writeHead(200, ['Content-Type' => 'text/plain']);
             $response->end("OK\n");
 
             // Get incoming JSON payload
@@ -102,7 +119,7 @@ class Plugin extends AbstractPlugin
 
                 // Verify signature
                 list($algo, $signature) = explode("=", $headers['X-Hub-Signature']);
-                if (hash_hmac($algo, $payload, $hook['secret']) != $signature) {
+                if ($hook['secret'] && hash_hmac($algo, $payload, $hook['secret']) != $signature) {
                     // Headers and response already sent out, can't back up now?
                     throw new Exception("Invalid signature"); // TODO: Handle this a bit more gracefully
                 }
