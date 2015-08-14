@@ -56,10 +56,6 @@ class Plugin extends AbstractPlugin
         $this->config = $config;
     }
 
-    public function onConnectBeforeAll(array $connections) {
-        $this->webhook_server()->listen($this->config['port'], '0.0.0.0');
-    }
-
     private function webhook_server()
     {
         // Set up react HTTP server to listen for github webhooks
@@ -74,22 +70,26 @@ class Plugin extends AbstractPlugin
             if (empty($headers['X-GitHub-Event'])) {
                 $response->writeHead(500, ['Content-Type' => 'text/plain']);
                 $response->end("Missing event header\n");
+                $this->logger->error("Received request with missing event header");
                 return;
             }
 
             if (empty($headers['X-Hub-Signature'])) {
                 $response->writeHead(500, ['Content-Type' => 'text/plain']);
                 $response->end("Missing signature\n");
+                $this->logger->error("Received request with missing signature header");
                 return;
             }
 
             // Okay the request
             $response->writeHead(200, ['Content-Type' => 'text/plain']);
             $response->end("OK\n");
+            $this->logger->debug("Received request");
 
             // Get incoming JSON payload
             $payload = "";
             $request->on('data', function ($data) use (&$payload) {
+                $this->logger->debug("Recieved data: " . var_export($data, TRUE));
                 $payload .= $data;
             });
 
@@ -100,19 +100,20 @@ class Plugin extends AbstractPlugin
                 // Parse json payload to PHP array
                 $payload = json_decode($payload, TRUE);
                 if (!$payload) {
-                    // Headers and response already sent out, can't back up now?
-                    var_dump($payload);
-                    var_dump(json_last_error_msg());
-                    throw new \Exception("Could not parse payload"); // TODO: Handle this a bit more gracefully
+                    $this->logger->error(sprintf("Unable to parse payload: %s", json_last_error_msg()));
+                    $this->logger->debug('Payload: ' . var_export($payload, TRUE));
+                    return;
                 }
 
                 // Check which repository this event belongs to
                 if (empty($payload['repository'])) {
-                    throw new \Exception("Missing repository!"); // TODO: Handle it gracefully
+                    $this->logger->error("Missing repository info in payload");
+                    return;
                 }
                 $hook = $payload['repository']['full_name'];
                 if (!array_key_exists($hook, $this->hooks)) {
-                    throw new \Exception("Not listening to this repository"); // TODO: Handle it gracefully
+                    $this->logger->error(sprintf("Repository '%s' not configured", $hook));
+                    return;
                 }
                 $hook = $this->hooks[$hook];
 
@@ -120,12 +121,13 @@ class Plugin extends AbstractPlugin
                 list($algo, $signature) = explode("=", $headers['X-Hub-Signature']);
                 if ($hook['secret'] && hash_hmac($algo, $raw_payload, $hook['secret']) != $signature) {
                     // Headers and response already sent out, can't back up now?
-                    throw new \Exception("Invalid signature"); // TODO: Handle this a bit more gracefully
+                    $this->logger->error("Invalid signature");
+                    return;
                 }
 
                 // Check if we're actually listening for the sent event for this repository
                 if (!in_array('*', $hook['events']) && !in_array($headers['X-GitHub-Event'], $hook['events'])) {
-                    throw new \Exception("Not listening to event"); // TODO: Handle this a bit more gracefully
+                    $this->logger->error("Not listening to event");
                     return;
                 }
 
@@ -161,4 +163,9 @@ class Plugin extends AbstractPlugin
             'connect.before.all'        => 'onConnectBeforeAll',
         ];
     }
+
+    public function onConnectBeforeAll(array $connections) {
+        $this->webhook_server()->listen($this->config['port'], '0.0.0.0');
+    }
+
 }
