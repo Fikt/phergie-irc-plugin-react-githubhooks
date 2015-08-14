@@ -60,12 +60,7 @@ class Plugin extends AbstractPlugin
         $this->webhook_server()->listen($this->config['port'], '0.0.0.0');
     }
 
-    /**
-     * Start webhook server
-     *
-     * @param $connections          Array of connections (do we need that?)
-     */
-    private function webhook_server(Array $connections)
+    private function webhook_server()
     {
         // Set up react HTTP server to listen for github webhooks
         $loop = $this->getLoop();
@@ -88,22 +83,6 @@ class Plugin extends AbstractPlugin
                 return;
             }
 
-            // Check if we're actually listening to this hook
-            $hook = substr($request->getPath(), 1);
-            if (!array_key_exists($hook, $this->hooks)) {
-                $response->writeHead(500, ['Content-Type' => 'text/plain']);
-                $response->end("Invalid path, please set correct path corresponding to your config\n");
-                return;
-            }
-            $hook = $this->hooks[$hook];
-
-            // Check if we're actually listening for the sent event for this repository
-            if ($event === NULL || !in_array($headers['X-GitHub-Event'], $hook['events'])) {
-                $response->writeHead(500, ['Content-Type' => 'text/plain']);
-                $response->end("Invalid event, this hook is not listening to this event\n");
-                return;
-            }
-
             // Okay the request
             $response->writeHead(200, ['Content-Type' => 'text/plain']);
             $response->end("OK\n");
@@ -115,30 +94,66 @@ class Plugin extends AbstractPlugin
             });
 
             // Wait for the end of data burst
-            $request->on('end', function () use (&$payload, $hook, $event, $headers) {
-
-                // Verify signature
-                list($algo, $signature) = explode("=", $headers['X-Hub-Signature']);
-                if ($hook['secret'] && hash_hmac($algo, $payload, $hook['secret']) != $signature) {
-                    // Headers and response already sent out, can't back up now?
-                    throw new Exception("Invalid signature"); // TODO: Handle this a bit more gracefully
-                }
+            $request->on('end', function () use (&$payload, $headers) {
+                $raw_payload = $payload;
 
                 // Parse json payload to PHP array
                 $payload = json_decode($payload, TRUE);
                 if (!$payload) {
                     // Headers and response already sent out, can't back up now?
-                    throw new Exception("Could not parse payload"); // TODO: Handle this a bit more gracefully
+                    var_dump($payload);
+                    var_dump(json_last_error_msg());
+                    throw new \Exception("Could not parse payload"); // TODO: Handle this a bit more gracefully
+                }
+
+                // Check which repository this event belongs to
+                if (empty($payload['repository'])) {
+                    throw new \Exception("Missing repository!"); // TODO: Handle it gracefully
+                }
+                $hook = $payload['repository']['full_name'];
+                if (!array_key_exists($hook, $this->hooks)) {
+                    throw new \Exception("Not listening to this repository"); // TODO: Handle it gracefully
+                }
+                $hook = $this->hooks[$hook];
+
+                // Verify signature
+                list($algo, $signature) = explode("=", $headers['X-Hub-Signature']);
+                if ($hook['secret'] && hash_hmac($algo, $raw_payload, $hook['secret']) != $signature) {
+                    // Headers and response already sent out, can't back up now?
+                    throw new \Exception("Invalid signature"); // TODO: Handle this a bit more gracefully
+                }
+
+                // Check if we're actually listening for the sent event for this repository
+                if (!in_array('*', $hook['events']) && !in_array($headers['X-GitHub-Event'], $hook['events'])) {
+                    throw new \Exception("Not listening to event"); // TODO: Handle this a bit more gracefully
+                    return;
                 }
 
                 // Format and send the event to all relevant channels
+                $message = $this->format_event($headers['X-GitHub-Event'], $payload);
                 foreach ($hook['channels'] as $channel) {
-                    $this->logger->info(sprintf("Send event %s to %s", $event, $channel));
+                    $this->logger->info($message);
                 }
             });
         });
 
         return $socket;
+    }
+
+    /**
+     * Return readable string for event
+     *
+     * @todo Move the whole thing to a separate class
+     */
+    private function format_event($event, $payload) {
+        switch ($event) {
+            case 'ping':
+                return sprintf("I've received ping, zen says: %s", $payload['zen']);
+                break;
+            default:
+                return sprintf("I just recieved unknown event named '%s', send help...", $event);
+                break;
+        }
     }
 
     public function getSubscribedEvents() {
