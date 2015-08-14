@@ -56,14 +56,14 @@ class Plugin extends AbstractPlugin
         $this->config = $config;
     }
 
-    private function webhook_server()
+    private function webhook_server($connections)
     {
         // Set up react HTTP server to listen for github webhooks
         $loop = $this->getLoop();
         $socket = new \React\Socket\Server($loop);
         $http = new \React\Http\Server($socket, $loop);
 
-        $http->on('request', function ($request, $response) {
+        $http->on('request', function ($request, $response) use ($connections) {
             $headers = $request->getHeaders();
 
             // Basic check if we got event and signature headers
@@ -94,7 +94,7 @@ class Plugin extends AbstractPlugin
             });
 
             // Wait for the end of data burst
-            $request->on('end', function () use (&$payload, $headers) {
+            $request->on('end', function () use (&$payload, $headers, $connections) {
                 $raw_payload = $payload;
 
                 // Parse json payload to PHP array
@@ -133,8 +133,12 @@ class Plugin extends AbstractPlugin
 
                 // Format and send the event to all relevant channels
                 $message = $this->format_event($headers['X-GitHub-Event'], $payload);
-                foreach ($hook['channels'] as $channel) {
-                    $this->logger->info($message);
+                foreach ($connections as $connection) {
+                    $queue = $this->getEventQueueFactory()->getEventQueue($connection);
+                    foreach ($hook['channels'] as $channel) {
+                        $this->logger->info($message);
+                        $queue->ircPrivmsg($channel, $message);
+                    }
                 }
             });
         });
@@ -165,7 +169,7 @@ class Plugin extends AbstractPlugin
     }
 
     public function onConnectBeforeAll(array $connections) {
-        $this->webhook_server()->listen($this->config['port'], '0.0.0.0');
+        $this->webhook_server($connections)->listen($this->config['port'], '0.0.0.0');
     }
 
 }
