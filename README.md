@@ -2,7 +2,10 @@
 
 [Phergie](http://github.com/phergie/phergie-irc-bot-react/) plugin for GitHub webhooks, listen to events and announce them on IRC.
 
-[![Build Status](https://secure.travis-ci.org/fikt/phergie-irc-plugin-react-githubhooks.png?branch=master)](http://travis-ci.org/fikt/phergie-irc-plugin-react-githubhooks)
+[![Build Status](https://secure.travis-ci.org/Fikt/phergie-irc-plugin-react-githubhooks.png?branch=master)](http://travis-ci.org/Fikt/phergie-irc-plugin-react-githubhooks)
+
+## What it does
+This plugin fires up react/http server that listens for incoming webhooks from GitHub, then announces any event to the configured channels.
 
 ## Install
 
@@ -21,6 +24,8 @@ See Phergie documentation for more information on
 
 ## Phergie configuration
 
+Hook name corresponds to webhook request path.
+
 ```php
 return [
     'plugins' => [
@@ -37,14 +42,14 @@ return [
              */
             'channels'      => ['#some-channel'], // Channel list, broadcast events to these channels
             'events'        => ['*'], // Events to broadcast, '*' is all events.
-            'secret'        => 'My super secret key', // Optional (but recommended) secret key, used to verify the message is actually from GitHub
+            'secret'        => 'My super secret shared key', // Optional (but recommended) secret key, used to verify the message is actually from GitHub
 
             /**
              * Array of webhooks, key corresponds to the webhook request path
              */
-            'webhooks'      => [
-                'fikt/irc-phergie-plugin-react-githubhooks' => [], // Use global configuration
-                'fikt/some-private-repo' => [
+            'hooks'      => [
+                'githubhooks' => [], // Use global configuration
+                'fikt' => [
                     'channels'      => ['#some-private-channel'], // Override global configuration
                     'secret'        => 'My other super secret key', // Override global configuration
                 ],
@@ -56,7 +61,7 @@ return [
 
 ## Tests
 
-To run the unit test suite do `composer test` 
+To run the unit test suite do `composer test`
 
 ## License
 

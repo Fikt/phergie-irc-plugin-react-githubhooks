@@ -10,25 +10,30 @@
 
 namespace Fikt\Phergie\Irc\Plugin\React\GitHubHooks;
 
-use Phergie\Irc\Bot\React\AbstractPlugin;
-use Phergie\Irc\Bot\React\EventQueueInterface as Queue;
-use Phergie\Irc\Event\EventInterface as Event;
-
 /**
  * Plugin class.
  *
- * @category Fikt
  * @package Fikt\Phergie\Irc\Plugin\React\GitHubHooks
  */
-class Plugin extends AbstractPlugin
+class Plugin extends \Phergie\Irc\Bot\React\AbstractPlugin
 {
 
+    /**
+     * Plugin configuration
+     *
+     * @var array
+     */
     private $config;
 
     /**
-     * Accepts plugin configuration.
+     * List of hooks
      *
-     * Supported keys:
+     * @var array
+     */
+    private $hooks;
+
+    /**
+     * Accepts plugin configuration.
      *
      * @param array $config
      */
@@ -39,12 +44,12 @@ class Plugin extends AbstractPlugin
             'channels'      => [],
             'events'        => ['*'],
             'port'          => 8080,
-            'webhooks'      => [],
+            'hooks'         => [],
             'secret'        => FALSE,
         ], $config);
 
         // Set default configuration for hooks, or use override values
-        $this->hooks = $config['webhooks'];
+        $this->hooks = $config['hooks'];
         foreach ($this->hooks as $name => &$info) {
             $info = array_merge([
                 'secret'        => $config['secret'],
@@ -56,120 +61,43 @@ class Plugin extends AbstractPlugin
         $this->config = $config;
     }
 
-    private function webhook_server($connections)
-    {
-        // Set up react HTTP server to listen for github webhooks
-        $loop = $this->getLoop();
-        $socket = new \React\Socket\Server($loop);
-        $http = new \React\Http\Server($socket, $loop);
+    /**
+     * @see \Phergie\Irc\Client\React\LoopAwareInterface::setLoop
+     */
+    public function setLoop(\React\EventLoop\LoopInterface $loop) {
+        parent::setLoop($loop);
 
-        $http->on('request', function ($request, $response) use ($connections) {
-            $headers = $request->getHeaders();
-
-            // Basic check if we got event and signature headers
-            if (empty($headers['X-GitHub-Event'])) {
-                $response->writeHead(500, ['Content-Type' => 'text/plain']);
-                $response->end("Missing event header\n");
-                $this->logger->error("Received request with missing event header");
-                return;
-            }
-
-            if (empty($headers['X-Hub-Signature'])) {
-                $response->writeHead(500, ['Content-Type' => 'text/plain']);
-                $response->end("Missing signature\n");
-                $this->logger->error("Received request with missing signature header");
-                return;
-            }
-
-            // Okay the request
-            $response->writeHead(200, ['Content-Type' => 'text/plain']);
-            $response->end("OK\n");
-            $this->logger->debug("Received request");
-
-            // Get incoming JSON payload
-            $payload = "";
-            $request->on('data', function ($data) use (&$payload) {
-                $this->logger->debug("Recieved data: " . var_export($data, TRUE));
-                $payload .= $data;
-            });
-
-            // Wait for the end of data burst
-            $request->on('end', function () use (&$payload, $headers, $connections) {
-                $raw_payload = $payload;
-
-                // Parse json payload to PHP array
-                $payload = json_decode($payload, TRUE);
-                if (!$payload) {
-                    $this->logger->error(sprintf("Unable to parse payload: %s", json_last_error_msg()));
-                    $this->logger->debug('Payload: ' . var_export($payload, TRUE));
-                    return;
-                }
-
-                // Check which repository this event belongs to
-                if (empty($payload['repository'])) {
-                    $this->logger->error("Missing repository info in payload");
-                    return;
-                }
-                $hook = $payload['repository']['full_name'];
-                if (!array_key_exists($hook, $this->hooks)) {
-                    $this->logger->error(sprintf("Repository '%s' not configured", $hook));
-                    return;
-                }
-                $hook = $this->hooks[$hook];
-
-                // Verify signature
-                list($algo, $signature) = explode("=", $headers['X-Hub-Signature']);
-                if ($hook['secret'] && hash_hmac($algo, $raw_payload, $hook['secret']) != $signature) {
-                    // Headers and response already sent out, can't back up now?
-                    $this->logger->error("Invalid signature");
-                    return;
-                }
-
-                // Check if we're actually listening for the sent event for this repository
-                if (!in_array('*', $hook['events']) && !in_array($headers['X-GitHub-Event'], $hook['events'])) {
-                    $this->logger->error("Not listening to event");
-                    return;
-                }
-
-                // Format and send the event to all relevant channels
-                $message = $this->format_event($headers['X-GitHub-Event'], $payload);
-                foreach ($connections as $connection) {
-                    $queue = $this->getEventQueueFactory()->getEventQueue($connection);
-                    foreach ($hook['channels'] as $channel) {
-                        $this->logger->info($message);
-                        $queue->ircPrivmsg($channel, $message);
-                    }
-                }
-            });
-        });
-
-        return $socket;
+        // We have the loop, initialize listening server
+        new Server($this);
     }
 
     /**
-     * Return readable string for event
-     *
-     * @todo Move the whole thing to a separate class
+     * @see \Phergie\Irc\Bot\React\EventEmitterAwareInterface::setEventEmitter
      */
-    private function format_event($event, $payload) {
-        switch ($event) {
-            case 'ping':
-                return sprintf("I've received ping, zen says: %s", $payload['zen']);
-                break;
-            default:
-                return sprintf("I just recieved unknown event named '%s', send help...", $event);
-                break;
-        }
+    public function setEventEmitter(\Evenement\EventEmitterInterface $emitter) {
+        parent::setEventEmitter($emitter);
+
+        // We have the emitter, initialize event handlers
+        new Handler($this);
     }
 
+    /**
+     * Get plugin configuration
+     *
+     * @return array Plugin configuration array.
+     */
+    public function getConfig() {
+        return $this->config;
+    }
+
+    /**
+     * @see \Phergie\Irc\Bot\React\PluginInterface::getSubscribedEvents
+     */
     public function getSubscribedEvents() {
-        return [
-            'connect.before.all'        => 'onConnectBeforeAll',
-        ];
+        return [];
     }
 
-    public function onConnectBeforeAll(array $connections) {
-        $this->webhook_server($connections)->listen($this->config['port'], '0.0.0.0');
+    public function getHooks() {
+        return $this->hooks;
     }
-
 }
