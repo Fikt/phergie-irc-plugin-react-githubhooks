@@ -13,6 +13,7 @@ namespace Fikt\Phergie\Irc\Plugin\React\GitHubHooks;
 use Phergie\Irc\ConnectionInterface;
 use Evenement\EventEmitterInterface;
 use React\EventLoop\LoopInterface;
+use Phergie\Irc\Bot\React\EventEmitterAwareInterface;
 
 /**
  * Plugin class.
@@ -82,7 +83,8 @@ class Plugin extends \Phergie\Irc\Bot\React\AbstractPlugin
             'port'          => 8080,
             'hooks'         => [],
             'secret'        => FALSE,
-            'formatter'     => new Formatter\Standard(),
+            'url-shortener' => FALSE,
+            'handler'       => 'Fikt\\Phergie\\Irc\\Plugin\\React\\GitHubHooks\\Handler\\Standard',
         ], $config);
 
         // Set default configuration for hooks, or use override values
@@ -92,8 +94,14 @@ class Plugin extends \Phergie\Irc\Bot\React\AbstractPlugin
                 'secret'        => $config['secret'],
                 'channels'      => $config['channels'],
                 'events'        => $config['events'],
-                'formatter'     => $config['formatter'],
+                'handler'       => $config['handler'],
+                'url-shortener' => FALSE,
             ], $info);
+
+            if (is_string($info['handler'])) {
+                $info['handler'] = new $info['handler']();
+            }
+            $info['handler']->setPlugin($this);
         }
 
         $this->config = $config;
@@ -115,8 +123,11 @@ class Plugin extends \Phergie\Irc\Bot\React\AbstractPlugin
     public function setEventEmitter(EventEmitterInterface $emitter) {
         parent::setEventEmitter($emitter);
 
-        // We have the emitter, initialize event handlers
-        new Handler($this);
+        foreach ($this->getHooks() as $hook => $info) {
+            if ($info['handler'] instanceof EventEmitterAwareInterface) {
+                $info['handler']->setEventEmitter($emitter);
+            }
+        }
     }
 
     /**

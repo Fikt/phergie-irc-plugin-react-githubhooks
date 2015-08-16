@@ -1,26 +1,26 @@
 # fikt/phergie-irc-plugin-react-githubhooks
 
-[Phergie](http://github.com/phergie/phergie-irc-bot-react/) plugin for GitHub webhooks, listen to events and announce them on IRC.
+[Phergie](http://github.com/phergie/phergie-irc-bot-react/) plugin for GitHub webhooks, listen for events and announce them on IRC.
 
 [![Build Status](https://secure.travis-ci.org/Fikt/phergie-irc-plugin-react-githubhooks.png?branch=master)](http://travis-ci.org/Fikt/phergie-irc-plugin-react-githubhooks)
 
 ## What it does
-This plugin fires up react/http server that listens for incoming webhooks from GitHub, then announces any event to the configured channels.
+
+This plugin listens for incoming webhooks from GitHub, and announces events on IRC.
+
+## What events it announces
+
+Pushed commits, that's the most obvious one, but that's not all. It can also announce issue related events, be it open/close/reopen or assigning/labeling. Comments, it annaounces comments to commits, pull requests and issues. Community, it can announce who forks or starred the repository. Continuous integration & deployment, It can even announce if travis-ci or jenkins successfully built your project and deployment progress.
+
+Check out [Event Type & Payloads](https://developer.github.com/v3/activity/events/types/) in the GitHub API documentation for detailed information about available events.
+
+## How it works
+
+The plugin starts an react/http server and listens (by default) on port 8080. When GitHub sends an event the Server class automagically emits an event githubhooks.[hook].[event]. The built in Handler then catches the event and announces it on IRC, if you'd like you can override the default Handler and customize it in your own style. (It's IRC, cool colors are to be expected)
 
 ## Install
 
-The recommended method of installation is [through composer](http://getcomposer.org).
-
-```JSON
-{
-    "require": {
-        "fikt/phergie-irc-plugin-react-githubhooks": "dev-master"
-    }
-}
-```
-
-See Phergie documentation for more information on
-[installing and enabling plugins](https://github.com/phergie/phergie-irc-bot-react/wiki/Usage#plugins).
+See Phergie documentation for more information on [installing and enabling plugins](https://github.com/phergie/phergie-irc-bot-react/wiki/Usage#plugins).
 
 ## Phergie configuration
 
