@@ -105,31 +105,6 @@ class Standard implements HandlerInterface
     }
 
     /**
-     * Prefix every message with this
-     *
-     * @param array $payload Event payload directly from GitHub
-     */
-    private function prefix(array $payload)
-    {
-        // If it contains a repo, prefix that
-        if (!empty($payload['repository'])) {
-            return sprintf("[ %s ] "
-                , $payload['repository']['name']
-            );
-        }
-
-        // If there's no repo, then it's probably something about an organization
-        if (!empty($payload['organization'])) {
-            return sprintf("[ %s ] "
-                , $payload['organization']['login']
-            );
-        }
-
-        // Otherwise I have no idea what might be up
-        return "[ UNKNOWN ] ";
-    }
-
-    /**
      * Return correctly formatted url
      *
      * @param string $url URL to display
@@ -141,17 +116,16 @@ class Standard implements HandlerInterface
     }
 
     /**
-     * Pretty much a custom sprintf, prepend prefix and append url
+     * Pretty much a custom sprintf
      *
      * @todo Color supprt, a classical one (not an object with an ->color() method)
-     * @param array $payload Event payload directly from GitHub
      * @param string $url URL related to this event
      * @param string $string The message itself
      * @param mixed ...$params Parameters printf style
      */
-    private function format($payload, $url, $string, ...$params)
+    private function format($url, $string, ...$params)
     {
-        return $this->prefix($payload) . vsprintf($string, $params) . ($url !== NULL ? $this->url($url) : "");
+        return vsprintf($string, $params) . ($url !== NULL ? $this->url($url) : "");
     }
 
     /**
@@ -159,8 +133,9 @@ class Standard implements HandlerInterface
      */
     public function ping(array $payload)
     {
-        return $this->format($payload, NULL
-            , "Ping received, zen is: %s"
+        return $this->format(NULL
+            , "Webhook ping received from %s, looks like this works :) GitHub zen: %s"
+            , $payload['repository']['full_name']
             , $payload['zen']
         );
     }
@@ -170,13 +145,21 @@ class Standard implements HandlerInterface
      */
     public function commit_comment(array $payload)
     {
-        return $this->format($payload, $payload['comment']['url']
-            , "%s commented on commit %s (%s%s)"
-            , $payload['comment']['user']['login']
-            , \substr($payload['comment']['commit_id'], 0, 7)
-            , \substr($payload['comment']['body'], 0, 16)
-            , (\strlen($payload['comment']['body']) > 16 ? '...' : '')
-        );
+        $comment_length = 64;
+        return [
+            $this->format($payload['comment']['url']
+                , "%s commented on commit %s in %s"
+                , $payload['comment']['user']['login']
+                , \substr($payload['comment']['commit_id'], 0, 7)
+                , $payload['repository']['full_name']
+            ),
+            $this->format(NULL
+                , "%s: %s"
+                , $payload['comment']['user']['login']
+                , \substr($payload['comment']['body'], 0, $comment_length)
+                , (\strlen($payload['comment']['body']) > $comment_length ? '...' : '')
+            ),
+        ];
     }
 
     /**
@@ -184,11 +167,12 @@ class Standard implements HandlerInterface
      */
     public function create(array $payload)
     {
-        return $this->format($payload, NULL
-            , "%s created new %s named %s"
+        return $this->format(NULL
+            , "%s created new %s named %s in %s"
             , $payload['user']['login']
             , $payload['ref_type']
             , ($payload['ref'] !== NULL ? $payload['ref'] : $payload['repository']['full_name'])
+            , $payload['repository']['full_name']
         );
     }
 
@@ -197,11 +181,12 @@ class Standard implements HandlerInterface
      */
     public function delete(array $payload)
     {
-        return $this->format($payload, NULL
-            , "%s removed the %s %s"
+        return $this->format(NULL
+            , "%s removed the %s %s in %s"
             , $payload['user']['login']
             , $payload['ref_type']
             , $payload['ref']
+            , $payload['repository']['full_name']
         );
     }
 
@@ -210,11 +195,12 @@ class Standard implements HandlerInterface
      */
     public function deployment(array $payload)
     {
-        return $this->format($payload, NULL
-            , "Deploying %s for %s %s"
+        return $this->format(NULL
+            , "Deploying %s for %s %s in %s"
             , substr($payload['deploymet']['sha'], 0, 7)
             , $payload['deployment']['environment']
             , (!empty($payload['deployment']['description']) ? $payload['deployment']['description'] : '')
+            , $payload['repository']['full_name']
         );
     }
 
@@ -226,22 +212,23 @@ class Standard implements HandlerInterface
         $state = "";
         switch ($payload['deployment_status']['state']) {
             case 'pending':
-                $state = "is pending...";
+                $state = "is pending";
                 break;
             case 'success':
-                $state = "was successful!";
+                $state = "was successful";
                 break;
             case 'failure':
-                $state = "failed!";
+                $state = "failed";
                 break;
             case 'error':
-                $state = "failed with an error!";
+                $state = "failed with an error";
                 break;
         }
-        return $this->format($payload, $payload['deployment_status']['target_url']
-            , "Deployment for %s %s %s"
+        return $this->format($payload['deployment_status']['target_url']
+            , "Deployment for %s %s in %s: %s"
             , $payload['deployment']['environment']
             , $state
+            , $payload['repository']['full_name']
             , (!empty($payload['deployment_status']['description']) ? $payload['deployment_status']['description'] : '')
         );
     }
@@ -251,7 +238,7 @@ class Standard implements HandlerInterface
      */
     public function fork(array $payload)
     {
-        return $this->format($payload, $payload['forkee']['html_url']
+        return $this->format($payload['forkee']['html_url']
             , "%s just forked %s to his very own %s!"
             , $payload['forkee']['owner']['login']
             , $payload['repository']['full_name']
@@ -269,17 +256,19 @@ class Standard implements HandlerInterface
         // And maybe it is... I guess we have to see it in practice
         if (count($payload['pages']) == 1) {
             $page = $payload['pages'][0];
-            return $this->format($payload, $page['html_url']
-                , "%s created new wiki entry '%s'"
+            return $this->format($page['html_url']
+                , "%s created new wiki entry '%s' for %s"
                 , $payload['user']['login']
                 , $page['title']
+                , $payload['repository']['full_name']
             );
         }
 
-        return $this->format($payload, NULL
-            , "%s created %d wiki entries"
+        return $this->format(NULL
+            , "%s created %d wiki entries for %s"
             , $payload['user']['login']
             , count($payload['pages'])
+            , $payload['repository']['full_name']
         );
     }
 
@@ -288,26 +277,36 @@ class Standard implements HandlerInterface
      */
     public function issue_comment(array $payload)
     {
-        return $this->format($payload, $payload['comment']['url']
-            , "%s %s comment (%s%s) on issue #%d: %s%s"
-            , $payload['comment']['user']['login']
-            , $payload['action']
-            , \substr($payload['comment']['body'], 0, 16)
-            , (\strlen($payload['comment']['body']) > 16 ? '...' : '')
-            , $payload['issue']['number']
-            , \substr($payload['issue']['title'], 0, 16)
-            , (\strlen($payload['issue']['title']) > 16 ? '...' : '')
-        );
+        return [
+            $this->format($payload['comment']['html_url']
+                , "%s has commented on issue #%d in %s"
+                , $payload['comment']['user']['login']
+                , $payload['issue']['number']
+                , $payload['repository']['full_name']
+            ),
+            $this->format($payload['issue']['html_url']
+                , "Issue #%d: %s"
+                , $payload['issue']['number']
+                , $payload['issue']['title']
+            ),
+            $this->format($payload['issue']['html_url']
+                , "%s: %s"
+                , $payload['comment']['user']['login']
+                , \substr($payload['comment']['body'], 0, 64)
+                , (\strlen($payload['comment']['body']) > 64 ? '...' : '')
+            ),
+        ];
     }
 
     /**
      * @see HandlerInterface::issues()
+     * @todo Make somewhat intelligent, don't bombard channel with changes
      */
     public function issues(array $payload)
     {
         switch ($payload['action']) {
             case 'assigned':
-                return $this->format($payload, $payload['issue']['url']
+                return $this->format($payload['issue']['url']
                     , "%s was assigned issue #%d: %s%s%s"
                     , $payload['assignee']['login']
                     , $payload['issue']['number']
@@ -317,7 +316,7 @@ class Standard implements HandlerInterface
                 );
                 break;
             case 'unassigned':
-                return $this->format($payload, $payload['issue']['url']
+                return $this->format($payload['issue']['url']
                     , "%s has been unassigned issue #%d: %s%s%s"
                     , $payload['assignee']['login']
                     , $payload['issue']['number']
@@ -327,7 +326,7 @@ class Standard implements HandlerInterface
                 );
                 break;
             case 'labeled':
-                return $this->format($payload, $payload['issue']['url']
+                return $this->format($payload['issue']['url']
                     , "%s labeled issue #%d: %s%s as %s"
                     , $payload['sender']['login']
                     , $payload['issue']['number']
@@ -337,7 +336,7 @@ class Standard implements HandlerInterface
                 );
                 break;
             case 'unlabeled':
-                return $this->format($payload, $payload['issue']['url']
+                return $this->format($payload['issue']['url']
                     , "%s removed label %s from issue #%d: %s%s"
                     , $payload['sender']['login']
                     , $payload['label']['name']
@@ -349,7 +348,7 @@ class Standard implements HandlerInterface
             case 'opened':
             case 'closed':
             case 'reopened':
-                return $this->format($payload, $payload['issue']['url']
+                return $this->format($payload['issue']['url']
                     , "%s has %s the issue #%d: %s%s"
                     , $payload['sender']['login']
                     , $payload['action']
@@ -366,7 +365,7 @@ class Standard implements HandlerInterface
      */
     public function member(array $payload)
     {
-        return $this->format($payload, NULL
+        return $this->format(NULL
             , "%s was %s to the repository"
             , $payload['member']['login']
             , $payload['action']
@@ -387,7 +386,7 @@ class Standard implements HandlerInterface
                 $action = "has been removed from";
                 break;
         }
-        return $this->format($payload, NULL
+        return $this->format(NULL
             , "%s was %s %s team"
             , $action
             , $payload['team']['name']
@@ -399,7 +398,7 @@ class Standard implements HandlerInterface
      */
     public function page_build(array $payload)
     {
-        return $this->format($payload, NULL
+        return $this->format(NULL
             , "Building page: %s"
             , $payload['build']['status']
         );
@@ -410,7 +409,7 @@ class Standard implements HandlerInterface
      */
     public function _public(array $payload)
     {
-        return $this->format($payload, $payload['repository']['html_url']
+        return $this->format($payload['repository']['html_url']
             , "This repository has been made publicly available!"
         );
     }
@@ -422,7 +421,7 @@ class Standard implements HandlerInterface
     {
         switch ($payload['action']) {
             case 'assigned':
-                return $this->format($payload, $payload['pull_request']['url']
+                return $this->format($payload['pull_request']['url']
                     , "Pull request #%d: %s%s has been assigned to %s"
                     , $payload['pull_request']['number']
                     , \substr($payload['pull_request']['title'], 0, 16)
@@ -431,7 +430,7 @@ class Standard implements HandlerInterface
                 );
                 break;
             case 'unassigned':
-                return $this->format($payload, $payload['pull_request']['url']
+                return $this->format($payload['pull_request']['url']
                     , "%s has been unassigned from pull request #%d: %s%s"
                     , '???' // FIXME: Documentation doesn't state what the "assignee" variable is
                     , $payload['pull_request']['number']
@@ -440,7 +439,7 @@ class Standard implements HandlerInterface
                 );
                 break;
             case 'labeled':
-                return $this->format($payload, $payload['pull_request']['url']
+                return $this->format($payload['pull_request']['url']
                     , "Pull request #%d: %s%s has been labeled as %s"
                     , $payload['pull_request']['number']
                     , \substr($payload['pull_request']['title'], 0, 16)
@@ -449,7 +448,7 @@ class Standard implements HandlerInterface
                 );
                 break;
             case 'unlabeled':
-                return $this->format($payload, $payload['pull_request']['url']
+                return $this->format($payload['pull_request']['url']
                     , "Label %s removed from pull request #%d: %s%s" 
                     , '???' // FIXME: Documentation doesn't state what the "labeled" variable is
                     , $payload['pull_request']['number']
@@ -458,7 +457,7 @@ class Standard implements HandlerInterface
                 );
                 break;
             case 'opened':
-                return $this->format($payload, $payload['pull_request']['url']
+                return $this->format($payload['pull_request']['url']
                     , "%s has opened pull request #%d: %s%s"
                     , $payload['pull_request']['user']['login']
                     , $payload['pull_request']['number']
@@ -467,7 +466,7 @@ class Standard implements HandlerInterface
                 );
                 break;
             case 'closed':
-                return $this->format($payload, $payload['pull_request']['url']
+                return $this->format($payload['pull_request']['url']
                     , "%s has closed pull request #%d: %s%s"
                     , $payload['sender']['login']
                     , $payload['pull_request']['number']
@@ -476,7 +475,7 @@ class Standard implements HandlerInterface
                 );
                 break;
             case 'reopened':
-                return $this->format($payload, $payload['pull_request']['url']
+                return $this->format($payload['pull_request']['url']
                     , "%s has reopened pull request #%d: %s%s"
                     , $payload['sender']['login']
                     , $payload['pull_request']['number']
@@ -485,7 +484,7 @@ class Standard implements HandlerInterface
                 );
                 break;
             case 'synchronize':
-                return $this->format($payload, $payload['pull_request']['url']
+                return $this->format($payload['pull_request']['url']
                     , "%s has synchronized pull request #%d: %s%s"
                     , $payload['sender']['login']
                     , $payload['pull_request']['number']
@@ -504,7 +503,7 @@ class Standard implements HandlerInterface
      */
     public function pull_request_review_comment(array $payload)
     {
-        return $this->format($payload, $payload['comment']['html_url']
+        return $this->format($payload['comment']['html_url']
             , "%s has commented on pull request #%d: %s%s (%s%s)"
             , $payload['comment']['user']['login']
             , $payload['pull_request']['number']
@@ -521,18 +520,28 @@ class Standard implements HandlerInterface
     public function push(array $payload)
     {
         $output = [];
-        $output[] = $this->format($payload, NULL
-            , "%s pushed %d commits"
+        $output[] = $this->format(NULL
+            , "%s pushed %d %s to %s"
             , $payload['sender']['login']
             , count($payload['commits'])
+            , (count($payload['commits']) == 1 ? "commit" : "commits")
+            , $payload['repository']['full_name']
         );
         foreach ($payload['commits'] as $commit) {
-            $output[] = $this->format($payload, NULL
-                , "Commit %s by %s (%s <%s>)"
+            if (strpos($commit['message'], "\n\n") !== FALSE) {
+                list($message, ) = explode("\n\n", $commit['message'], 2);
+            }
+            else {
+                $message = \substr($commit['message'], 0, 64);
+            }
+            $output[] = $this->format(NULL
+                , "Commit %s by %s added %d, removed %d and modified %d files: %s"
                 , \substr($commit['id'], 0, 7)
                 , $commit['committer']['username']
-                , $commit['committer']['name']
-                , $commit['committer']['email']
+                , count($commit['added'])
+                , count($commit['removed'])
+                , count($commit['modified'])
+                , $message
             );
         }
         return $output;
@@ -543,7 +552,7 @@ class Standard implements HandlerInterface
      */
     public function release(array $payload)
     {
-        return $this->format($payload, NULL
+        return $this->format(NULL
             , "%s %s release %s"
             , $payload['sender']['login']
             , $payload['action']
@@ -556,7 +565,7 @@ class Standard implements HandlerInterface
      */
     public function repository(array $payload)
     {
-        return $this->format($payload, NULL
+        return $this->format(NULL
             , "%s created the repository %s"
             , $payload['sender']['login']
             , $payload['repository']['full_name']
@@ -565,11 +574,12 @@ class Standard implements HandlerInterface
 
     /**
      * @see HandlerInterface::status()
+     * @todo Make more intelligent, travis for some reason reports pending twice
      */
     public function status(array $payload)
     {
-        return $this->format($payload, $payload['target_url']
-            , "Commit %s (%s): %s"
+        return $this->format($payload['target_url']
+            , "Commit %s %s: %s"
             , substr($payload['sha'], 0, 7)
             , $payload['state']
             , $payload['description']
@@ -581,7 +591,7 @@ class Standard implements HandlerInterface
      */
     public function team_add(array $payload)
     {
-        return $this->format($payload, NULL
+        return $this->format(NULL
             , "Team %s has been added to %s"
             , $payload['team']['name']
             , $payload['repository']['full_name']
@@ -593,9 +603,10 @@ class Standard implements HandlerInterface
      */
     public function watch(array $payload)
     {
-        return $this->format($payload, NULL
-            , "We gained a fan, %s just starred us!"
+        return $this->format(NULL
+            , "We gained a fan, %s just starred %s!"
             , $payload['sender']['login']
+            , $payload['repository']['full_name']
         );
     }
 }
