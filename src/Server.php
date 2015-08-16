@@ -41,7 +41,7 @@ class Server {
         $socket = new \React\Socket\Server($loop);
         $http = new \React\Http\Server($socket, $loop);
 
-        $http->on('request', function ($request, $response) use ($connections) {
+        $http->on('request', function ($request, $response) {
             $headers = $request->getHeaders();
             $path = $request->getPath();
             $hook = substr($path, 1);
@@ -88,7 +88,7 @@ class Server {
             });
 
             // Wait for the end of data burst
-            $request->on('end', function () use (&$payload, $headers, $connections, $hook) {
+            $request->on('end', function () use (&$payload, $headers, $hook) {
                 $raw_payload = $payload;
 
                 // Parse json payload to PHP array

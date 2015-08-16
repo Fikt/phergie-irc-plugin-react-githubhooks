@@ -24,19 +24,52 @@ class Handler {
      */
     private $plugin;
 
+    /**
+     * Construct handler class
+     *
+     * @param Plugin $plugin
+     */
     public function __construct(Plugin $plugin) {
         $this->plugin = $plugin;
+        $this->listenToEvents();
+    }
 
-        $emitter = $plugin->getEventEmitter();
+    /**
+     * Listen to events
+     */
+    public function listenToEvents() {
+        $emitter = $this->getPlugin()->getEventEmitter();
 
-        foreach ($this->plugin->getHooks() as $hook => $info) {
-            # foreach ($info['event'] as $event) {
-            foreach (['ping'] as $event) {
-                $emitter->on("githubhooks.$hook.$event", function ($payload) use ($event) {
-                    var_dump($payload);
-                    $this->plugin->getLogger()->debug("Got $event! {$payload['zen']}");
+        foreach ($this->getPlugin()->getHooks() as $hook => $info) {
+            foreach ($info['events'] as $event) {
+                $emitter->on("githubhooks.$hook.$event", function ($payload) use ($event, $hook, $info) {
+                    if ($event == "public") {
+                        // FIXME: Remove when PHP 7 becomes stable.
+                        $event = "_public";
+                    }
+                    if (!method_exists($info['formatter'], $event)) {
+                        $this->getPlugin()->getLogger()->warning("Set event formatter for $hook can not handle the $event event.");
+                        return;
+                    }
+                    $message = $info['formatter']->$event($payload);
+                    $message = $this->getPlugin()->escapeParam($message);
+
+                    foreach ($this->getPlugin()->getConnections() as $connection) {
+                        $eventqueue = $this->getPlugin()->getEventQueueFactory()->getEventQueue($connection);
+                        foreach ($info['channels'] as $channel) {
+                            $eventqueue->ircPrivmsg($channel, $message);
+                        }
+                    }
                 });
             }
         }
+    }
+
+    /**
+     * Return plugin instance
+     * @return Plugin Plugin instance
+     */
+    private function getPlugin() {
+        return $this->plugin;
     }
 }
