@@ -520,7 +520,7 @@ class Standard implements HandlerInterface
     public function push(array $payload)
     {
         $output = [];
-        $output[] = $this->format(NULL
+        $output[] = $this->format($payload['compare']
             , "%s pushed %d %s to %s"
             , $payload['sender']['login']
             , count($payload['commits'])
@@ -534,7 +534,7 @@ class Standard implements HandlerInterface
             else {
                 $message = \substr($commit['message'], 0, 64);
             }
-            $output[] = $this->format(NULL
+            $output[] = $this->format($commit['url']
                 , "Commit %s by %s added %d, removed %d and modified %d files: %s"
                 , \substr($commit['id'], 0, 7)
                 , $commit['committer']['username']
