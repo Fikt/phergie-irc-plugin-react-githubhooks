@@ -4,19 +4,17 @@
 
 [![Build Status](https://secure.travis-ci.org/Fikt/phergie-irc-plugin-react-githubhooks.png?branch=master)](http://travis-ci.org/Fikt/phergie-irc-plugin-react-githubhooks)
 
-## What it does
+## What does it do?
 
 This plugin listens for incoming webhooks from GitHub, and announces events on IRC.
 
-## What events it announces
+These events are not just triggered on push, but also on issue updates, pull requests and comments on all of these. You'll even get status updates from jenkins/travis-ci builds and changes to the wiki.
 
-Pushed commits, that's the most obvious one, but that's not all. It can also announce issue related events, be it open/close/reopen or assigning/labeling. Comments, it annaounces comments to commits, pull requests and issues. Community, it can announce who forks or starred the repository. Continuous integration & deployment, It can even announce if travis-ci or jenkins successfully built your project and deployment progress.
-
-Check out [Event Type & Payloads](https://developer.github.com/v3/activity/events/types/) in the GitHub API documentation for detailed information about available events.
+Check out [Event Type & Payloads](https://developer.github.com/v3/activity/events/types/) in the GitHub API documentation for detailed information about every single event.
 
 ## How it works
 
-The plugin starts an react/http server and listens (by default) on port 8080. When GitHub sends an event the Server class automagically emits an event githubhooks.[hook].[event]. The built in Handler then catches the event and announces it on IRC, if you'd like you can override the default Handler and customize it in your own style. (It's IRC, cool colors are to be expected)
+The plugin listens for incoming hooks on port 8080 (configurable), it then emits an event when it receives one. The standard event handler then acts upon that event, and announces the event on IRC.
 
 ## Install
 
@@ -31,15 +29,6 @@ return [
     'plugins' => [
         // configuration
         new \Fikt\Phergie\Irc\Plugin\React\GitHubHooks\Plugin([
-
-            /**
-             * Plugin configuration
-             */
-            'port'          => 8080,    /**< HTTP server port, listen on this port for Github webhooks */
-
-            /**
-             * Global repository configuration options, you can override all of these for each repository
-             */
             'channels'      => ['#some-channel'], // Channel list, broadcast events to these channels
             'events'        => ['*'], // Events to broadcast, '*' is all events.
             'secret'        => 'My super secret shared key', // Optional (but recommended) secret key, used to verify the message is actually from GitHub
