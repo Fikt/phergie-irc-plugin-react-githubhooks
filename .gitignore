@@ -10,3 +10,6 @@ composer.lock
 Session.vim
 .netrwhist
 *~
+
+### phpDocumentor ###
+docs
