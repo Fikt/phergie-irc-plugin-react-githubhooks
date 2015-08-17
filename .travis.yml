@@ -19,4 +19,3 @@ before_script:
 
 script:
   - ./vendor/bin/phpunit --coverage-text
-  - ./vendor/bin/phpdoc -d $TRAVIS_BUILD_DIR/src/,$TRAVIS_BUILD_DIR/vendor/phergie -t $TRAVIS_BUILD_DIR/docs --ignore "*/tests/*"

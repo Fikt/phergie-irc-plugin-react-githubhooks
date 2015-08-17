@@ -25,9 +25,9 @@
     "require-dev": {
         "phpunit/phpunit": "4.5.*",
         "phake/phake": "2.0.0-beta2",
+        "phpdocumentor/phpdocumentor": "^2.8",
         "phergie/phergie-irc-plugin-react-autojoin": "^1.1",
-        "phergie/phergie-irc-plugin-react-pong": "^1.1",
-        "phpdocumentor/phpdocumentor": "2.*"
+        "phergie/phergie-irc-plugin-react-pong": "^1.1"
     },
     "autoload": {
         "psr-4": {
@@ -41,11 +41,11 @@
     },
     "extra": {
         "branch-alias": {
-            "dev-master": "1.0-dev"
+            "dev-master": "0.1-dev"
         }
     },
     "scripts": {
         "test": "./vendor/bin/phpunit",
-        "docs": "./vendor/bin/phpdoc -d src/,vendor/phergie -t docs --ignore \"*/tests/*\""
+        "docs": "./vendor/bin/phpdoc -d src/,vendor/phergie -t docs --ignore \"*/tests/*\" --title=\"GitHubHooks\" --validate --sourcecode"
     }
 }
