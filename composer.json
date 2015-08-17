@@ -18,7 +18,7 @@
         "source": "https://github.com/fikt/phergie-irc-plugin-react-githubhooks"
     },
     "require": {
-        "php" : ">=5.6.0",
+        "php" : ">=5.3.0",
         "phergie/phergie-irc-bot-react": "~1",
         "react/http": "dev-master"
     },
