@@ -1,6 +1,6 @@
 <?php
 /**
- * Phergie plugin for Listen for GitHub webhooks, announce events on IRC. (http://github.com/Fikt/phergie-irc-plugin-react-githubhooks/wiki)
+ * Phergie plugin that listens for GitHub webhooks, announce events on IRC. (http://github.com/Fikt/phergie-irc-plugin-react-githubhooks/wiki)
  *
  * @link https://github.com/fikt/phergie-irc-plugin-react-githubhooks for the canonical source repository
  * @copyright Copyright (c) 2015 Gunnsteinn Þórisson (https://github.com/Gussi)
@@ -10,12 +10,15 @@
 
 namespace Fikt\Phergie\Irc\Plugin\React\GitHubHooks;
 
+use React\EventLoop\LoopInterface;
+
 /**
  * Server class, starts up server listening for webhooks from GitHub and emits events accordingly
  *
  * @package Fikt\Phergie\Irc\Plugin\React\GitHubHooks
  */
-class Server {
+class Server
+{
 
     /**
      * Parent plugin instance
@@ -29,14 +32,23 @@ class Server {
      *
      * @param Plugin $plugin
      */
-    public function __construct(Plugin $plugin) {
+    public function __construct(Plugin $plugin)
+    {
         $this->plugin = $plugin;
         $loop = $plugin->getLoop();
         $config = $plugin->getConfig();
         $this->runServer($loop, $config['port']);
     }
 
-    private function runServer($loop, $port = 8080, $ip = '0.0.0.0') {
+    /**
+     * Run react/http server for incoming GitHub webhook events
+     *
+     * @param LoopInterface $loop
+     * @param int $port
+     * @param string $ip
+     */
+    private function runServer(LoopInterface $loop, $port = 8080, $ip = '0.0.0.0')
+    {
         // Set up react HTTP server to listen for github webhooks
         $socket = new \React\Socket\Server($loop);
         $http = new \React\Http\Server($socket, $loop);

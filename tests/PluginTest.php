@@ -1,6 +1,6 @@
 <?php
 /**
- * Phergie plugin for Listen for GitHub webhooks, announce events on IRC. (http://github.com/Fikt/phergie-irc-plugin-react-githubhooks/wiki)
+ * Phergie plugin that listens for GitHub webhooks, announce events on IRC. (http://github.com/Fikt/phergie-irc-plugin-react-githubhooks/wiki)
  *
  * @link https://github.com/fikt/phergie-irc-plugin-react-githubhooks for the canonical source repository
  * @copyright Copyright (c) 2015 Gunnsteinn Þórisson (https://github.com/Gussi)

@@ -1,6 +1,6 @@
 <?php
 /**
- * Phergie plugin for Listen for GitHub webhooks, announce events on IRC. (http://github.com/Fikt/phergie-irc-plugin-react-githubhooks/wiki)
+ * Phergie plugin that listens for GitHub webhooks, announce events on IRC. (http://github.com/Fikt/phergie-irc-plugin-react-githubhooks/wiki)
  *
  * @link https://github.com/fikt/phergie-irc-plugin-react-githubhooks for the canonical source repository
  * @copyright Copyright (c) 2015 Gunnsteinn Þórisson (https://github.com/Gussi)
@@ -108,7 +108,10 @@ class Plugin extends \Phergie\Irc\Bot\React\AbstractPlugin
     }
 
     /**
-     * @see \Phergie\Irc\Client\React\LoopAwareInterface::setLoop
+     * Sets the event loop for the implementing class to use.
+     *
+     * @see \Phergie\Irc\Client\React\LoopAwareInterface::setLoop()
+     * @param \React\EventLoop\LoopInterface $loop
      */
     public function setLoop(LoopInterface $loop) {
         parent::setLoop($loop);
@@ -118,7 +121,10 @@ class Plugin extends \Phergie\Irc\Bot\React\AbstractPlugin
     }
 
     /**
-     * @see \Phergie\Irc\Bot\React\EventEmitterAwareInterface::setEventEmitter
+     * Sets the event emitter for the implementing class to use.
+     *
+     * @see \Phergie\Irc\Bot\React\EventEmitterAwareInterface::setEventEmitter()
+     * @param \Evenement\EventEmitterInterface $emitter
      */
     public function setEventEmitter(EventEmitterInterface $emitter) {
         parent::setEventEmitter($emitter);
@@ -140,7 +146,12 @@ class Plugin extends \Phergie\Irc\Bot\React\AbstractPlugin
     }
 
     /**
+     * Returns a mapping of events to applicable callbacks.
+     *
      * @see \Phergie\Irc\Bot\React\PluginInterface::getSubscribedEvents
+     * @return array Associative array keyed by event name referencing strings
+     *         containing names of instance methods in the class implementing
+     *         this interface or valid callables
      */
     public function getSubscribedEvents() {
         return [

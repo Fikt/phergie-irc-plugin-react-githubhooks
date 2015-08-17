@@ -1,6 +1,6 @@
 <?php
 /**
- * Phergie plugin for Listen for GitHub webhooks, announce events on IRC. (http://github.com/Fikt/phergie-irc-plugin-react-githubhooks/wiki)
+ * Phergie plugin that listens for GitHub webhooks, announce events on IRC. (http://github.com/Fikt/phergie-irc-plugin-react-githubhooks/wiki)
  *
  * @link https://github.com/fikt/phergie-irc-plugin-react-githubhooks for the canonical source repository
  * @copyright Copyright (c) 2015 Gunnsteinn Þórisson (https://github.com/Gussi)
@@ -10,8 +10,9 @@
 
 namespace Fikt\Phergie\Irc\Plugin\React\GitHubHooks\Handler;
 
-use Fikt\Phergie\Irc\Plugin\React\GitHubHooks\Plugin;
 use Evenement\EventEmitterInterface;
+use Fikt\Phergie\Irc\Plugin\React\GitHubHooks\HandlerInterface;
+use Fikt\Phergie\Irc\Plugin\React\GitHubHooks\Plugin;
 
 /**
  * Standard handler class
@@ -37,6 +38,9 @@ class Standard implements HandlerInterface
     protected $emitter;
 
     /**
+     * Sets the event emitter for the implementing class to use.
+     *
+     * @param \Evenement\EventEmitterInterface $emitter
      * @see \Phergie\Irc\Bot\React\EventEmitterAwareInterface::setEventEmitter
      */
     public function setEventEmitter(EventEmitterInterface $emitter) {
@@ -123,12 +127,16 @@ class Standard implements HandlerInterface
      * @param string $string The message itself
      * @param mixed ...$params Parameters printf style
      */
-    private function format($url, $string, ...$params)
+    private function format($url, $string)
     {
+        $params = array_slice(func_get_args(), 2);
         return vsprintf($string, $params) . ($url !== NULL ? $this->url($url) : "");
     }
 
     /**
+     * Format ping event
+     *
+     * @param array $payload Event payload directly from GitHub
      * @see HandlerInterface::ping()
      */
     public function ping(array $payload)
@@ -141,6 +149,9 @@ class Standard implements HandlerInterface
     }
 
     /**
+     * Format commit_comment event
+     *
+     * @param array $payload Event payload directly from GitHub
      * @see HandlerInterface::commit_comment()
      */
     public function commit_comment(array $payload)
@@ -163,6 +174,9 @@ class Standard implements HandlerInterface
     }
 
     /**
+     * Format create event
+     *
+     * @param array $payload Event payload directly from GitHub
      * @see HandlerInterface::create()
      */
     public function create(array $payload)
@@ -177,6 +191,9 @@ class Standard implements HandlerInterface
     }
 
     /**
+     * Format delete event
+     *
+     * @param array $payload Event payload directly from GitHub
      * @see HandlerInterface::delete()
      */
     public function delete(array $payload)
@@ -191,6 +208,9 @@ class Standard implements HandlerInterface
     }
 
     /**
+     * Format deployment event
+     *
+     * @param array $payload Event payload directly from GitHub
      * @see HandlerInterface::deployment()
      */
     public function deployment(array $payload)
@@ -205,6 +225,9 @@ class Standard implements HandlerInterface
     }
 
     /**
+     * Format deployment_status event
+     *
+     * @param array $payload Event payload directly from GitHub
      * @see HandlerInterface::deployment_status()
      */
     public function deployment_status(array $payload)
@@ -234,6 +257,9 @@ class Standard implements HandlerInterface
     }
 
     /**
+     * Format fork event
+     *
+     * @param array $payload Event payload directly from GitHub
      * @see HandlerInterface::fork()
      */
     public function fork(array $payload)
@@ -247,6 +273,9 @@ class Standard implements HandlerInterface
     }
 
     /**
+     * Format gollum event
+     *
+     * @param array $payload Event payload directly from GitHub
      * @see HandlerInterface::gollum()
      */
     public function gollum(array $payload)
@@ -273,6 +302,9 @@ class Standard implements HandlerInterface
     }
 
     /**
+     * Format issue_comment event
+     *
+     * @param array $payload Event payload directly from GitHub
      * @see HandlerInterface::issue_comment()
      */
     public function issue_comment(array $payload)
@@ -299,8 +331,11 @@ class Standard implements HandlerInterface
     }
 
     /**
-     * @see HandlerInterface::issues()
+     * Format public  event
+     *
      * @todo Make somewhat intelligent, don't bombard channel with changes
+     * @param array $payload Event payload directly from GitHub
+     * @see HandlerInterface::issues()
      */
     public function issues(array $payload)
     {
@@ -361,6 +396,9 @@ class Standard implements HandlerInterface
     }
 
     /**
+     * Format member event
+     *
+     * @param array $payload Event payload directly from GitHub
      * @see HandlerInterface::member()
      */
     public function member(array $payload)
@@ -373,6 +411,9 @@ class Standard implements HandlerInterface
     }
 
     /**
+     * Format membership event
+     *
+     * @param array $payload Event payload directly from GitHub
      * @see HandlerInterface::membership()
      */
     public function membership(array $payload)
@@ -394,6 +435,9 @@ class Standard implements HandlerInterface
     }
 
     /**
+     * Format page_build event
+     *
+     * @param array $payload Event payload directly from GitHub
      * @see HandlerInterface::page_build()
      */
     public function page_build(array $payload)
@@ -405,6 +449,9 @@ class Standard implements HandlerInterface
     }
 
     /**
+     * Format _public event
+     *
+     * @param array $payload Event payload directly from GitHub
      * @see HandlerInterface::_public()
      */
     public function _public(array $payload)
@@ -415,6 +462,9 @@ class Standard implements HandlerInterface
     }
 
     /**
+     * Format pull_request event
+     *
+     * @param array $payload Event payload directly from GitHub
      * @see HandlerInterface::pull_request()
      */
     public function pull_request(array $payload)
@@ -499,6 +549,9 @@ class Standard implements HandlerInterface
     }
 
     /**
+     * Format pull_request_review_comment event
+     *
+     * @param array $payload Event payload directly from GitHub
      * @see HandlerInterface::pull_request_review_comment()
      */
     public function pull_request_review_comment(array $payload)
@@ -515,6 +568,9 @@ class Standard implements HandlerInterface
     }
 
     /**
+     * Format push event
+     *
+     * @param array $payload Event payload directly from GitHub
      * @see HandlerInterface::push()
      */
     public function push(array $payload)
@@ -548,6 +604,9 @@ class Standard implements HandlerInterface
     }
 
     /**
+     * Format release event
+     *
+     * @param array $payload Event payload directly from GitHub
      * @see HandlerInterface::release()
      */
     public function release(array $payload)
@@ -561,6 +620,9 @@ class Standard implements HandlerInterface
     }
 
     /**
+     * Format repository event
+     *
+     * @param array $payload Event payload directly from GitHub
      * @see HandlerInterface::repository()
      */
     public function repository(array $payload)
@@ -573,8 +635,11 @@ class Standard implements HandlerInterface
     }
 
     /**
-     * @see HandlerInterface::status()
+     * Format public  event
+     *
      * @todo Make more intelligent, travis for some reason reports pending twice
+     * @param array $payload Event payload directly from GitHub
+     * @see HandlerInterface::status()
      */
     public function status(array $payload)
     {
@@ -587,6 +652,9 @@ class Standard implements HandlerInterface
     }
 
     /**
+     * Format team_add event
+     *
+     * @param array $payload Event payload directly from GitHub
      * @see HandlerInterface::team_add()
      */
     public function team_add(array $payload)
@@ -599,6 +667,9 @@ class Standard implements HandlerInterface
     }
 
     /**
+     * Format watch event
+     *
+     * @param array $payload Event payload directly from GitHub
      * @see HandlerInterface::watch()
      */
     public function watch(array $payload)
