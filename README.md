@@ -8,7 +8,7 @@
 
 This plugin listens for incoming webhooks from GitHub, and announces events on IRC.
 
-These events are not just triggered on push, but also on issue updates, pull requests and comments on all of these. You'll even get status updates from jenkins/travis-ci builds and changes to the wiki.
+These events are not just triggered on push, but also on issue updates, pull requests, comments and more, you can even get status updates from jenkins/travis-ci builds and changes to the wiki.
 
 Check out [Event Type & Payloads](https://developer.github.com/v3/activity/events/types/) in the GitHub API documentation for detailed information about every single event.
 
@@ -16,29 +16,32 @@ Check out [Event Type & Payloads](https://developer.github.com/v3/activity/event
 
 The plugin listens for incoming hooks on port 8080 (configurable), it then emits an event when it receives one. The standard event handler then acts upon that event, and announces the event on IRC.
 
-## Install
+## Install & Configuration
 
-See Phergie documentation for more information on [installing and enabling plugins](https://github.com/phergie/phergie-irc-bot-react/wiki/Usage#plugins).
+See Phergie documentation for more information on [installing and enabling plugins](https://www.phergie.org/users/).
 
-## Phergie configuration
+### Phergie plugin configuration
 
 Hook name corresponds to webhook request path.
 
 ```php
 return [
+    // ... connection info goes here
+
+    // Plugin configuration
     'plugins' => [
-        // configuration
+        // GitHubHooks configuration
         new \Fikt\Phergie\Irc\Plugin\React\GitHubHooks\Plugin([
             'channels'      => ['#some-channel'], // Channel list, broadcast events to these channels
-            'events'        => ['*'], // Events to broadcast, '*' is all events.
+            'events'        => ['*'], // Events to broadcast, '*' for all events.
             'secret'        => 'My super secret shared key', // Optional (but recommended) secret key, used to verify the message is actually from GitHub
 
             /**
              * Array of webhooks, key corresponds to the webhook request path
              */
-            'hooks'      => [
-                'githubhooks' => [], // Use global configuration
-                'fikt' => [
+            'hooks'         => [
+                'githubhooks'   => [], // Use global configuration
+                'fikt'          => [
                     'channels'      => ['#some-private-channel'], // Override global configuration
                     'secret'        => 'My other super secret key', // Override global configuration
                 ],

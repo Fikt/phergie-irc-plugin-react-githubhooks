@@ -1,5 +1,5 @@
 {
-    "name": "fikt/phergie-irc-plugin-react-github-hooks",
+    "name": "fikt/phergie-irc-plugin-react-githubhooks",
     "description": "Phergie plugin for Listen for GitHub webhooks, announce events on IRC.",
     "keywords": [ "phergie", "irc", "bot", "plugin" ],
     "license": "BSD-2-Clause",
